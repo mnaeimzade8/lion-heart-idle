@@ -1,0 +1,538 @@
+<!DOCTYPE html>
+<html lang="en" dir="ltr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Lionheart Idle Arena</title>
+    <script src="https://telegram.org/js/telegram-web-app.js"></script>
+    <style>
+        :root {
+            --bg-dark: #0b0d14;
+            --panel-bg: #151926;
+            --panel-border: #262d42;
+            --gold: #f59e0b;
+            --gold-hover: #d97706;
+            --hero-green: #10b981;
+            --enemy-red: #ef4444;
+            --crit-orange: #ff5500;
+            --text-light: #f8fafc;
+            --text-dim: #94a3b8;
+        }
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+            font-family: 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+            user-select: none;
+            -webkit-tap-highlight-color: transparent;
+        }
+        body {
+            background-color: var(--bg-dark);
+            color: var(--text-light);
+            display: flex;
+            flex-direction: column;
+            height: 100vh;
+            overflow: hidden;
+            padding: 12px;
+            gap: 10px;
+        }
+
+        /* Top Bar */
+        .top-bar {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            background: var(--panel-bg);
+            border: 1px solid var(--panel-border);
+            padding: 10px 14px;
+            border-radius: 12px;
+        }
+        .player-info {
+            display: flex;
+            flex-direction: column;
+            gap: 2px;
+        }
+        .player-name {
+            font-size: 12px;
+            color: var(--text-dim);
+            font-weight: 600;
+        }
+        .stage-pill {
+            background: linear-gradient(135deg, #2563eb, #1d4ed8);
+            padding: 3px 10px;
+            border-radius: 6px;
+            font-size: 13px;
+            font-weight: 700;
+            display: inline-block;
+            width: fit-content;
+        }
+        .stage-pill.boss {
+            background: linear-gradient(135deg, #dc2626, #991b1b);
+            animation: pulseGlow 1.5s infinite;
+        }
+        .gold-box {
+            background: rgba(245, 158, 11, 0.12);
+            border: 1px solid rgba(245, 158, 11, 0.3);
+            color: var(--gold);
+            padding: 6px 12px;
+            border-radius: 10px;
+            font-weight: 800;
+            font-size: 16px;
+        }
+
+        /* Battle Arena */
+        .arena {
+            flex: 1;
+            background: radial-gradient(circle at center, #1e2438 0%, #0f121c 100%);
+            border: 1px solid var(--panel-border);
+            border-radius: 16px;
+            position: relative;
+            display: flex;
+            flex-direction: column;
+            justify-content: space-between;
+            padding: 16px 12px;
+            cursor: pointer;
+            overflow: hidden;
+        }
+        .arena-hint {
+            text-align: center;
+            font-size: 11px;
+            color: var(--text-dim);
+            letter-spacing: 0.3px;
+        }
+        .fighters-row {
+            display: flex;
+            justify-content: space-around;
+            align-items: center;
+            width: 100%;
+            margin: auto 0;
+        }
+        .fighter {
+            width: 44%;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            text-align: center;
+        }
+        .sprite-box {
+            width: 82px;
+            height: 82px;
+            border-radius: 18px;
+            background: #1a2033;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 42px;
+            margin-bottom: 8px;
+            position: relative;
+            transition: transform 0.08s ease-out;
+        }
+        .hero-box {
+            border: 2px solid var(--hero-green);
+            box-shadow: 0 0 15px rgba(16, 185, 129, 0.2);
+        }
+        .enemy-box {
+            border: 2px solid var(--enemy-red);
+            box-shadow: 0 0 15px rgba(239, 68, 68, 0.2);
+        }
+        .lunge-right { transform: translateX(18px) scale(1.1); }
+        .lunge-left { transform: translateX(-18px) scale(1.1); }
+        .shake { animation: shakeAnim 0.2s ease-in-out; }
+
+        .unit-title {
+            font-size: 14px;
+            font-weight: 700;
+            margin-bottom: 4px;
+            white-space: nowrap;
+        }
+        .hp-track {
+            width: 100%;
+            height: 10px;
+            background: #272e45;
+            border-radius: 5px;
+            overflow: hidden;
+            margin-bottom: 4px;
+        }
+        .hp-fill {
+            height: 100%;
+            transition: width 0.12s linear;
+        }
+        .hp-hero { background: var(--hero-green); }
+        .hp-enemy { background: var(--enemy-red); }
+        .unit-stats {
+            font-size: 11px;
+            color: var(--text-dim);
+        }
+
+        /* Floating Damage Numbers */
+        .dmg-popup {
+            position: absolute;
+            font-weight: 900;
+            font-size: 18px;
+            pointer-events: none;
+            animation: floatFade 0.65s ease-out forwards;
+            text-shadow: 0 2px 4px rgba(0,0,0,0.8);
+            z-index: 10;
+        }
+        .dmg-crit {
+            font-size: 24px;
+            color: var(--crit-orange) !important;
+        }
+
+        /* Monetization / Booster Button */
+        .boost-btn {
+            background: linear-gradient(90deg, #7c3aed, #db2777);
+            border: none;
+            color: #fff;
+            padding: 12px;
+            border-radius: 12px;
+            font-weight: 700;
+            font-size: 14px;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+            box-shadow: 0 4px 12px rgba(219, 39, 119, 0.3);
+        }
+        .boost-btn:disabled {
+            background: #2d344d;
+            color: #94a3b8;
+            box-shadow: none;
+            cursor: default;
+        }
+
+        /* Upgrade Cards */
+        .upgrades-list {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+        }
+        .upg-card {
+            background: var(--panel-bg);
+            border: 1px solid var(--panel-border);
+            padding: 10px 12px;
+            border-radius: 12px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        .upg-details h4 {
+            font-size: 13px;
+            font-weight: 700;
+            margin-bottom: 2px;
+        }
+        .upg-details p {
+            font-size: 11px;
+            color: var(--text-dim);
+        }
+        .buy-btn {
+            background: var(--gold);
+            color: #0b0d14;
+            border: none;
+            padding: 8px 14px;
+            border-radius: 8px;
+            font-weight: 800;
+            font-size: 13px;
+            min-width: 88px;
+            cursor: pointer;
+        }
+        .buy-btn:active { transform: scale(0.96); }
+        .buy-btn:disabled {
+            background: #283047;
+            color: #64748b;
+            cursor: not-allowed;
+        }
+
+        @keyframes floatFade {
+            0% { opacity: 1; transform: translateY(0) scale(1); }
+            100% { opacity: 0; transform: translateY(-45px) scale(1.15); }
+        }
+        @keyframes shakeAnim {
+            0%, 100% { transform: translateX(0); }
+            25% { transform: translateX(-5px); }
+            75% { transform: translateX(5px); }
+        }
+        @keyframes pulseGlow {
+            0%, 100% { box-shadow: 0 0 8px rgba(220, 38, 38, 0.6); }
+            50% { box-shadow: 0 0 18px rgba(220, 38, 38, 1); }
+        }
+    </style>
+</head>
+<body>
+
+    <div class="top-bar">
+        <div class="player-info">
+            <span class="player-name" id="tg-username">Commander</span>
+            <span class="stage-pill" id="stage-badge">Stage 1</span>
+        </div>
+        <div class="gold-box">💰 <span id="gold-count">0</span></div>
+    </div>
+
+    <div class="arena" id="battle-arena">
+        <div class="arena-hint">⚔️ Auto-Battle Active • Tap Arena to Strike</div>
+        
+        <div class="fighters-row">
+            <!-- Hero -->
+            <div class="fighter">
+                <div class="sprite-box hero-box" id="hero-sprite">🦁</div>
+                <div class="unit-title">Lionheart</div>
+                <div class="hp-track"><div class="hp-fill hp-hero" id="hero-hp-bar"></div></div>
+                <div class="unit-stats">HP: <span id="hero-hp-val">100/100</span> • ATK: <span id="hero-atk-val">12</span></div>
+            </div>
+
+            <!-- Enemy -->
+            <div class="fighter">
+                <div class="sprite-box enemy-box" id="enemy-sprite">👹</div>
+                <div class="unit-title" id="enemy-title">Goblin Lv.1</div>
+                <div class="hp-track"><div class="hp-fill hp-enemy" id="enemy-hp-bar"></div></div>
+                <div class="unit-stats">HP: <span id="enemy-hp-val">50/50</span> • ATK: <span id="enemy-atk-val">4</span></div>
+            </div>
+        </div>
+
+        <div class="arena-hint" id="combat-log">Defeat enemies to advance stages!</div>
+    </div>
+
+    <button class="boost-btn" id="ad-boost-btn">
+        🎬 Watch Ad: 2x Attack & Gold (60s)
+    </button>
+
+    <div class="upgrades-list">
+        <div class="upg-card">
+            <div class="upg-details">
+                <h4>Royal Greatsword (Lv.<span id="lvl-atk">1</span>)</h4>
+                <p>+6 Base Attack Damage</p>
+            </div>
+            <button class="buy-btn" id="btn-atk">15 💰</button>
+        </div>
+
+        <div class="upg-card">
+            <div class="upg-details">
+                <h4>Golden Lion Plate (Lv.<span id="lvl-hp">1</span>)</h4>
+                <p>+35 Max Health & Full Heal</p>
+            </div>
+            <button class="buy-btn" id="btn-hp">15 💰</button>
+        </div>
+
+        <div class="upg-card">
+            <div class="upg-details">
+                <h4>Lion's Instinct (Lv.<span id="lvl-crit">1</span>)</h4>
+                <p>+3% Critical Hit Chance (2.5x DMG)</p>
+            </div>
+            <button class="buy-btn" id="btn-crit">25 💰</button>
+        </div>
+    </div>
+
+    <script>
+        (function() {
+            // Safe Telegram WebApp Initialization
+            const tg = window.Telegram && window.Telegram.WebApp ? window.Telegram.WebApp : null;
+            if (tg) {
+                tg.ready();
+                tg.expand();
+                if (tg.initDataUnsafe && tg.initDataUnsafe.user && tg.initDataUnsafe.user.first_name) {
+                    document.getElementById('tg-username').textContent = tg.initDataUnsafe.user.first_name;
+                }
+            }
+
+            // Game State
+            const SAVE_KEY = 'lionheart_arena_v2';
+            let state = {
+                gold: 0,
+                stage: 1,
+                atkLvl: 1,
+                hpLvl: 1,
+                critLvl: 1
+            };
+
+            try {
+                const saved = localStorage.getItem(SAVE_KEY);
+                if (saved) state = Object.assign(state, JSON.parse(saved));
+            } catch (e) {
+                console.warn('Storage unavailable, using session state.');
+            }
+
+            let boostMultiplier = 1;
+            let boostSeconds = 0;
+
+            const enemies = [
+                { name: 'Shadow Goblin', icon: '👹' },
+                { name: 'Cursed Orc', icon: '👺' },
+                { name: 'Crypt Ghoul', icon: '🧟' },
+                { name: 'Blood Vampire', icon: '🧛' },
+                { name: 'Obsidian Golem', icon: '🗿' },
+                { name: 'Abyssal Dragon', icon: '🐉' }
+            ];
+
+            function getHeroStats() {
+                return {
+                    maxHp: 100 + (state.hpLvl - 1) * 35,
+                    atk: (12 + (state.atkLvl - 1) * 6) * boostMultiplier,
+                    critChance: Math.min(75, 5 + (state.critLvl - 1) * 3) // Caps at 75%
+                };
+            }
+
+            function createEnemy(stage) {
+                const isBoss = stage % 5 === 0;
+                const hpScale = Math.pow(1.19, stage - 1);
+                const atkScale = Math.pow(1.15, stage - 1);
+                const goldScale = Math.pow(1.16, stage - 1);
+                const template = enemies[(stage - 1) % enemies.length];
+
+                const maxHp = Math.floor((isBoss ? 140 : 48) * hpScale);
+                return {
+                    isBoss: isBoss,
+                    name: isBoss ? `🔥 BOSS: Dreadlord Lv.${stage}` : `${template.name} Lv.${stage}`,
+                    icon: isBoss ? '👑' : template.icon,
+                    maxHp: maxHp,
+                    currentHp: maxHp,
+                    atk: Math.floor((isBoss ? 9 : 4) * atkScale),
+                    reward: Math.floor((isBoss ? 40 : 12) * goldScale)
+                };
+            }
+
+            let heroHp = getHeroStats().maxHp;
+            let enemy = createEnemy(state.stage);
+
+            function getCost(type) {
+                if (type === 'atk') return Math.floor(15 * Math.pow(1.26, state.atkLvl - 1));
+                if (type === 'hp') return Math.floor(15 * Math.pow(1.26, state.hpLvl - 1));
+                if (type === 'crit') return Math.floor(25 * Math.pow(1.32, state.critLvl - 1));
+                return 999;
+            }
+
+            function formatNum(num) {
+                if (num >= 1e9) return (num / 1e9).toFixed(2) + 'B';
+                if (num >= 1e6) return (num / 1e6).toFixed(2) + 'M';
+                if (num >= 1e4) return (num / 1e3).toFixed(1) + 'K';
+                return Math.floor(num).toLocaleString();
+            }
+
+            function showDamage(amount, isEnemyHit, isCrit) {
+                const arena = document.getElementById('battle-arena');
+                const tag = document.createElement('div');
+                tag.className = 'dmg-popup' + (isCrit ? ' dmg-crit' : '');
+                tag.textContent = (isCrit ? '💥 -' : '-') + formatNum(amount);
+                tag.style.color = isEnemyHit ? '#fbbf24' : '#ef4444';
+                tag.style.left = isEnemyHit ? (62 + Math.random() * 14) + '%' : (18 + Math.random() * 14) + '%';
+                tag.style.top = (32 + Math.random() * 10) + '%';
+                arena.appendChild(tag);
+                setTimeout(() => tag.remove(), 650);
+            }
+
+            function triggerAnim(elementId, className) {
+                const el = document.getElementById(elementId);
+                el.classList.remove(className);
+                void el.offsetWidth; // Force reflow
+                el.classList.add(className);
+                setTimeout(() => el.classList.remove(className), 200);
+            }
+
+            function heroStrike(isManualTap = false) {
+                const stats = getHeroStats();
+                const isCrit = Math.random() * 100 < stats.critChance;
+                let dmg = isManualTap ? Math.ceil(stats.atk * 0.6) : stats.atk;
+                if (isCrit) dmg = Math.floor(dmg * 2.5);
+
+                enemy.currentHp -= dmg;
+                triggerAnim('hero-sprite', 'lunge-right');
+                triggerAnim('enemy-sprite', 'shake');
+                showDamage(dmg, true, isCrit);
+
+                if (enemy.currentHp <= 0) {
+                    const earned = enemy.reward * boostMultiplier;
+                    state.gold += earned;
+                    state.stage++;
+                    heroHp = Math.min(stats.maxHp, heroHp + Math.floor(stats.maxHp * 0.3));
+                    document.getElementById('combat-log').textContent = `Victory! +${formatNum(earned)} Gold`;
+                    enemy = createEnemy(state.stage);
+                    saveState();
+                }
+                renderUI();
+            }
+
+            function enemyStrike() {
+                heroHp -= enemy.atk;
+                triggerAnim('enemy-sprite', 'lunge-left');
+                triggerAnim('hero-sprite', 'shake');
+                showDamage(enemy.atk, false, false);
+
+                if (heroHp <= 0) {
+                    state.stage = Math.max(1, state.stage - 1);
+                    heroHp = getHeroStats().maxHp;
+                    document.getElementById('combat-log').textContent = `Defeated! Retreated to Stage ${state.stage}`;
+                    enemy = createEnemy(state.stage);
+                    saveState();
+                }
+                renderUI();
+            }
+
+            function buyUpgrade(type) {
+                const cost = getCost(type);
+                if (state.gold < cost) return;
+
+                state.gold -= cost;
+                if (type === 'atk') state.atkLvl++;
+                if (type === 'hp') {
+                    state.hpLvl++;
+                    heroHp = getHeroStats().maxHp;
+                }
+                if (type === 'crit') state.critLvl++;
+
+                if (tg && tg.HapticFeedback) tg.HapticFeedback.impactOccurred('light');
+                saveState();
+                renderUI();
+            }
+
+            function saveState() {
+                try {
+                    localStorage.setItem(SAVE_KEY, JSON.stringify(state));
+                } catch (e) {}
+            }
+
+            function renderUI() {
+                const hero = getHeroStats();
+                const stageBadge = document.getElementById('stage-badge');
+                stageBadge.textContent = enemy.isBoss ? `BOSS • Stage ${state.stage}` : `Stage ${state.stage}`;
+                stageBadge.className = enemy.isBoss ? 'stage-pill boss' : 'stage-pill';
+
+                document.getElementById('gold-count').textContent = formatNum(state.gold);
+
+                // Hero
+                document.getElementById('hero-hp-bar').style.width = Math.max(0, (heroHp / hero.maxHp) * 100) + '%';
+                document.getElementById('hero-hp-val').textContent = `${formatNum(Math.max(0, heroHp))}/${formatNum(hero.maxHp)}`;
+                document.getElementById('hero-atk-val').textContent = `${formatNum(hero.atk)} (${hero.critChance}% Crit)`;
+
+                // Enemy
+                document.getElementById('enemy-title').textContent = enemy.name;
+                document.getElementById('enemy-sprite').textContent = enemy.icon;
+                document.getElementById('enemy-hp-bar').style.width = Math.max(0, (enemy.currentHp / enemy.maxHp) * 100) + '%';
+                document.getElementById('enemy-hp-val').textContent = `${formatNum(Math.max(0, enemy.currentHp))}/${formatNum(enemy.maxHp)}`;
+                document.getElementById('enemy-atk-val').textContent = formatNum(enemy.atk);
+
+                // Upgrades
+                document.getElementById('lvl-atk').textContent = state.atkLvl;
+                document.getElementById('lvl-hp').textContent = state.hpLvl;
+                document.getElementById('lvl-crit').textContent = state.critLvl;
+
+                const costAtk = getCost('atk');
+                const costHp = getCost('hp');
+                const costCrit = getCost('crit');
+
+                const btnAtk = document.getElementById('btn-atk');
+                btnAtk.textContent = `${formatNum(costAtk)} 💰`;
+                btnAtk.disabled = state.gold < costAtk;
+
+                const btnHp = document.getElementById('btn-hp');
+                btnHp.textContent = `${formatNum(costHp)} 💰`;
+                btnHp.disabled = state.gold < costHp;
+
+                const btnCrit = document.getElementById('btn-crit');
+                btnCrit.textContent = `${formatNum(costCrit)} 💰`;
+                btnCrit.disabled = state.gold < costCrit;
+            }
+
+            // Event Listeners
+            document.getElementById('battle-arena').addEventListener('click', () => heroStrike(true));
+            document.getElementById('btn-atk').addEventListener('click', () => buyUpgrade('atk'));
+            document.getEle
