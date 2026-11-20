@@ -11,7 +11,6 @@
             --panel-bg: #151926;
             --panel-border: #262d42;
             --gold: #f59e0b;
-            --gold-hover: #d97706;
             --hero-green: #10b981;
             --enemy-red: #ef4444;
             --crit-orange: #ff5500;
@@ -24,17 +23,22 @@
             padding: 0;
             font-family: 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
             user-select: none;
+            -webkit-user-select: none;
             -webkit-tap-highlight-color: transparent;
+            touch-action: manipulation;
         }
-        body {
+        html, body {
             background-color: var(--bg-dark);
             color: var(--text-light);
+            height: 100%;
+            width: 100%;
+            overflow: hidden;
+        }
+        body {
             display: flex;
             flex-direction: column;
-            height: 100vh;
-            overflow: hidden;
-            padding: 12px;
-            gap: 10px;
+            padding: 10px;
+            gap: 8px;
         }
 
         /* Top Bar */
@@ -44,8 +48,9 @@
             align-items: center;
             background: var(--panel-bg);
             border: 1px solid var(--panel-border);
-            padding: 10px 14px;
+            padding: 8px 12px;
             border-radius: 12px;
+            flex-shrink: 0;
         }
         .player-info {
             display: flex;
@@ -53,22 +58,39 @@
             gap: 2px;
         }
         .player-name {
-            font-size: 12px;
+            font-size: 11px;
             color: var(--text-dim);
             font-weight: 600;
         }
+        .stage-row {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
         .stage-pill {
             background: linear-gradient(135deg, #2563eb, #1d4ed8);
-            padding: 3px 10px;
+            padding: 3px 9px;
             border-radius: 6px;
-            font-size: 13px;
+            font-size: 12px;
             font-weight: 700;
-            display: inline-block;
-            width: fit-content;
         }
         .stage-pill.boss {
             background: linear-gradient(135deg, #dc2626, #991b1b);
             animation: pulseGlow 1.5s infinite;
+        }
+        .combo-pill {
+            background: rgba(255, 85, 0, 0.18);
+            border: 1px solid rgba(255, 85, 0, 0.45);
+            color: #fb923c;
+            padding: 2px 7px;
+            border-radius: 6px;
+            font-size: 11px;
+            font-weight: 800;
+            opacity: 0;
+            transition: opacity 0.15s;
+        }
+        .combo-pill.active {
+            opacity: 1;
         }
         .gold-box {
             background: rgba(245, 158, 11, 0.12);
@@ -77,28 +99,36 @@
             padding: 6px 12px;
             border-radius: 10px;
             font-weight: 800;
-            font-size: 16px;
+            font-size: 15px;
         }
 
         /* Battle Arena */
         .arena {
             flex: 1;
+            min-height: 170px;
             background: radial-gradient(circle at center, #1e2438 0%, #0f121c 100%);
-            border: 1px solid var(--panel-border);
+            border: 2px solid var(--panel-border);
             border-radius: 16px;
             position: relative;
             display: flex;
             flex-direction: column;
             justify-content: space-between;
-            padding: 16px 12px;
+            padding: 12px;
             cursor: pointer;
             overflow: hidden;
+            transition: border-color 0.1s;
+        }
+        .arena:active {
+            border-color: var(--gold);
+        }
+        .arena * {
+            pointer-events: none; /* Ensures all taps go cleanly to the arena */
         }
         .arena-hint {
             text-align: center;
             font-size: 11px;
             color: var(--text-dim);
-            letter-spacing: 0.3px;
+            font-weight: 600;
         }
         .fighters-row {
             display: flex;
@@ -108,24 +138,24 @@
             margin: auto 0;
         }
         .fighter {
-            width: 44%;
+            width: 45%;
             display: flex;
             flex-direction: column;
             align-items: center;
             text-align: center;
         }
         .sprite-box {
-            width: 82px;
-            height: 82px;
+            width: 78px;
+            height: 78px;
             border-radius: 18px;
             background: #1a2033;
             display: flex;
             align-items: center;
             justify-content: center;
-            font-size: 42px;
-            margin-bottom: 8px;
+            font-size: 40px;
+            margin-bottom: 6px;
             position: relative;
-            transition: transform 0.08s ease-out;
+            transition: transform 0.07s ease-out, background-color 0.08s;
         }
         .hero-box {
             border: 2px solid var(--hero-green);
@@ -135,12 +165,15 @@
             border: 2px solid var(--enemy-red);
             box-shadow: 0 0 15px rgba(239, 68, 68, 0.2);
         }
-        .lunge-right { transform: translateX(18px) scale(1.1); }
-        .lunge-left { transform: translateX(-18px) scale(1.1); }
-        .shake { animation: shakeAnim 0.2s ease-in-out; }
+        .hit-flash {
+            background-color: rgba(255, 255, 255, 0.35) !important;
+        }
+        .lunge-right { transform: translateX(20px) scale(1.12); }
+        .lunge-left { transform: translateX(-20px) scale(1.12); }
+        .shake { animation: shakeAnim 0.18s ease-in-out; }
 
         .unit-title {
-            font-size: 14px;
+            font-size: 13px;
             font-weight: 700;
             margin-bottom: 4px;
             white-space: nowrap;
@@ -155,7 +188,7 @@
         }
         .hp-fill {
             height: 100%;
-            transition: width 0.12s linear;
+            transition: width 0.1s linear;
         }
         .hp-hero { background: var(--hero-green); }
         .hp-enemy { background: var(--enemy-red); }
@@ -164,35 +197,68 @@
             color: var(--text-dim);
         }
 
+        /* Tap Slash Ripple */
+        .tap-ring {
+            position: absolute;
+            width: 36px;
+            height: 36px;
+            border: 3px solid #fbbf24;
+            border-radius: 50%;
+            transform: translate(-50%, -50%) scale(0.4);
+            animation: ringExpand 0.35s ease-out forwards;
+            pointer-events: none;
+            z-index: 9;
+        }
+
         /* Floating Damage Numbers */
         .dmg-popup {
             position: absolute;
             font-weight: 900;
-            font-size: 18px;
+            font-size: 17px;
             pointer-events: none;
-            animation: floatFade 0.65s ease-out forwards;
-            text-shadow: 0 2px 4px rgba(0,0,0,0.8);
+            animation: floatFade 0.6s ease-out forwards;
+            text-shadow: 0 2px 4px rgba(0,0,0,0.9);
             z-index: 10;
         }
+        .dmg-tap {
+            color: #38bdf8 !important;
+            font-size: 16px;
+        }
         .dmg-crit {
-            font-size: 24px;
+            font-size: 23px !important;
             color: var(--crit-orange) !important;
         }
 
-        /* Monetization / Booster Button */
+        /* Action Row: Strike Button + Ad Boost */
+        .action-row {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 8px;
+            flex-shrink: 0;
+        }
+        .strike-btn {
+            background: linear-gradient(135deg, #f59e0b, #ea580c);
+            border: none;
+            color: #0b0d14;
+            padding: 11px 8px;
+            border-radius: 12px;
+            font-weight: 900;
+            font-size: 13px;
+            cursor: pointer;
+            box-shadow: 0 4px 12px rgba(234, 88, 12, 0.3);
+        }
+        .strike-btn:active {
+            transform: scale(0.96);
+        }
         .boost-btn {
-            background: linear-gradient(90deg, #7c3aed, #db2777);
+            background: linear-gradient(135deg, #7c3aed, #db2777);
             border: none;
             color: #fff;
-            padding: 12px;
+            padding: 11px 8px;
             border-radius: 12px;
             font-weight: 700;
-            font-size: 14px;
+            font-size: 12px;
             cursor: pointer;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            gap: 8px;
             box-shadow: 0 4px 12px rgba(219, 39, 119, 0.3);
         }
         .boost-btn:disabled {
@@ -206,12 +272,13 @@
         .upgrades-list {
             display: flex;
             flex-direction: column;
-            gap: 8px;
+            gap: 7px;
+            flex-shrink: 0;
         }
         .upg-card {
             background: var(--panel-bg);
             border: 1px solid var(--panel-border);
-            padding: 10px 12px;
+            padding: 9px 12px;
             border-radius: 12px;
             display: flex;
             justify-content: space-between;
@@ -230,23 +297,27 @@
             background: var(--gold);
             color: #0b0d14;
             border: none;
-            padding: 8px 14px;
+            padding: 8px 12px;
             border-radius: 8px;
             font-weight: 800;
             font-size: 13px;
-            min-width: 88px;
+            min-width: 84px;
             cursor: pointer;
         }
-        .buy-btn:active { transform: scale(0.96); }
+        .buy-btn:active { transform: scale(0.95); }
         .buy-btn:disabled {
             background: #283047;
             color: #64748b;
             cursor: not-allowed;
         }
 
+        @keyframes ringExpand {
+            0% { opacity: 1; transform: translate(-50%, -50%) scale(0.3); }
+            100% { opacity: 0; transform: translate(-50%, -50%) scale(1.6); }
+        }
         @keyframes floatFade {
             0% { opacity: 1; transform: translateY(0) scale(1); }
-            100% { opacity: 0; transform: translateY(-45px) scale(1.15); }
+            100% { opacity: 0; transform: translateY(-42px) scale(1.12); }
         }
         @keyframes shakeAnim {
             0%, 100% { transform: translateX(0); }
@@ -264,13 +335,16 @@
     <div class="top-bar">
         <div class="player-info">
             <span class="player-name" id="tg-username">Commander</span>
-            <span class="stage-pill" id="stage-badge">Stage 1</span>
+            <div class="stage-row">
+                <span class="stage-pill" id="stage-badge">Stage 1</span>
+                <span class="combo-pill" id="combo-badge">0x COMBO</span>
+            </div>
         </div>
         <div class="gold-box">💰 <span id="gold-count">0</span></div>
     </div>
 
     <div class="arena" id="battle-arena">
-        <div class="arena-hint">⚔️ Auto-Battle Active • Tap Arena to Strike</div>
+        <div class="arena-hint">⚔️ Tap Anywhere in Arena or Press STRIKE!</div>
         
         <div class="fighters-row">
             <!-- Hero -->
@@ -286,22 +360,23 @@
                 <div class="sprite-box enemy-box" id="enemy-sprite">👹</div>
                 <div class="unit-title" id="enemy-title">Goblin Lv.1</div>
                 <div class="hp-track"><div class="hp-fill hp-enemy" id="enemy-hp-bar"></div></div>
-                <div class="unit-stats">HP: <span id="enemy-hp-val">50/50</span> • ATK: <span id="enemy-atk-val">4</span></div>
+                <div class="unit-stats">HP: <span id="enemy-hp-val">48/48</span> • ATK: <span id="enemy-atk-val">4</span></div>
             </div>
         </div>
 
-        <div class="arena-hint" id="combat-log">Defeat enemies to advance stages!</div>
+        <div class="arena-hint" id="combat-log">Tap fast to build Fury Combo bonus damage!</div>
     </div>
 
-    <button class="boost-btn" id="ad-boost-btn">
-        🎬 Watch Ad: 2x Attack & Gold (60s)
-    </button>
+    <div class="action-row">
+        <button class="strike-btn" id="manual-strike-btn">⚔️ STRIKE (<span id="tap-dmg-label">10</span>)</button>
+        <button class="boost-btn" id="ad-boost-btn">🎬 2x Power (60s)</button>
+    </div>
 
     <div class="upgrades-list">
         <div class="upg-card">
             <div class="upg-details">
                 <h4>Royal Greatsword (Lv.<span id="lvl-atk">1</span>)</h4>
-                <p>+6 Base Attack Damage</p>
+                <p>+6 Attack & Tap Strike Power</p>
             </div>
             <button class="buy-btn" id="btn-atk">15 💰</button>
         </div>
@@ -325,7 +400,6 @@
 
     <script>
         (function() {
-            // Safe Telegram WebApp Initialization
             const tg = window.Telegram && window.Telegram.WebApp ? window.Telegram.WebApp : null;
             if (tg) {
                 tg.ready();
@@ -335,8 +409,7 @@
                 }
             }
 
-            // Game State
-            const SAVE_KEY = 'lionheart_arena_v2';
+            const SAVE_KEY = 'lionheart_arena_v3';
             let state = {
                 gold: 0,
                 stage: 1,
@@ -348,12 +421,12 @@
             try {
                 const saved = localStorage.getItem(SAVE_KEY);
                 if (saved) state = Object.assign(state, JSON.parse(saved));
-            } catch (e) {
-                console.warn('Storage unavailable, using session state.');
-            }
+            } catch (e) {}
 
             let boostMultiplier = 1;
             let boostSeconds = 0;
+            let tapCombo = 0;
+            let comboResetTimer = null;
 
             const enemies = [
                 { name: 'Shadow Goblin', icon: '👹' },
@@ -365,10 +438,13 @@
             ];
 
             function getHeroStats() {
+                const baseAtk = (12 + (state.atkLvl - 1) * 6) * boostMultiplier;
+                const comboBonus = 1 + Math.min(1.0, tapCombo * 0.05); // Up to +100% tap damage at 20 combo
                 return {
                     maxHp: 100 + (state.hpLvl - 1) * 35,
-                    atk: (12 + (state.atkLvl - 1) * 6) * boostMultiplier,
-                    critChance: Math.min(75, 5 + (state.critLvl - 1) * 3) // Caps at 75%
+                    atk: baseAtk,
+                    tapAtk: Math.max(1, Math.floor(baseAtk * 0.85 * comboBonus)),
+                    critChance: Math.min(75, 5 + (state.critLvl - 1) * 3)
                 };
             }
 
@@ -408,131 +484,23 @@
                 return Math.floor(num).toLocaleString();
             }
 
-            function showDamage(amount, isEnemyHit, isCrit) {
+            function spawnTapRing(clientX, clientY) {
+                const arena = document.getElementById('battle-arena');
+                const rect = arena.getBoundingClientRect();
+                const ring = document.createElement('div');
+                ring.className = 'tap-ring';
+                ring.style.left = (clientX ? clientX - rect.left : rect.width * 0.72) + 'px';
+                ring.style.top = (clientY ? clientY - rect.top : rect.height * 0.45) + 'px';
+                arena.appendChild(ring);
+                setTimeout(() => ring.remove(), 350);
+            }
+
+            function showDamage(amount, isEnemyHit, isCrit, isTap) {
                 const arena = document.getElementById('battle-arena');
                 const tag = document.createElement('div');
-                tag.className = 'dmg-popup' + (isCrit ? ' dmg-crit' : '');
-                tag.textContent = (isCrit ? '💥 -' : '-') + formatNum(amount);
-                tag.style.color = isEnemyHit ? '#fbbf24' : '#ef4444';
-                tag.style.left = isEnemyHit ? (62 + Math.random() * 14) + '%' : (18 + Math.random() * 14) + '%';
-                tag.style.top = (32 + Math.random() * 10) + '%';
-                arena.appendChild(tag);
-                setTimeout(() => tag.remove(), 650);
-            }
+                let classes = 'dmg-popup';
+                if (isTap) classes += ' dmg-tap';
+                if (isCrit) classes += ' dmg-crit';
+                tag.className = classes;
 
-            function triggerAnim(elementId, className) {
-                const el = document.getElementById(elementId);
-                el.classList.remove(className);
-                void el.offsetWidth; // Force reflow
-                el.classList.add(className);
-                setTimeout(() => el.classList.remove(className), 200);
-            }
-
-            function heroStrike(isManualTap = false) {
-                const stats = getHeroStats();
-                const isCrit = Math.random() * 100 < stats.critChance;
-                let dmg = isManualTap ? Math.ceil(stats.atk * 0.6) : stats.atk;
-                if (isCrit) dmg = Math.floor(dmg * 2.5);
-
-                enemy.currentHp -= dmg;
-                triggerAnim('hero-sprite', 'lunge-right');
-                triggerAnim('enemy-sprite', 'shake');
-                showDamage(dmg, true, isCrit);
-
-                if (enemy.currentHp <= 0) {
-                    const earned = enemy.reward * boostMultiplier;
-                    state.gold += earned;
-                    state.stage++;
-                    heroHp = Math.min(stats.maxHp, heroHp + Math.floor(stats.maxHp * 0.3));
-                    document.getElementById('combat-log').textContent = `Victory! +${formatNum(earned)} Gold`;
-                    enemy = createEnemy(state.stage);
-                    saveState();
-                }
-                renderUI();
-            }
-
-            function enemyStrike() {
-                heroHp -= enemy.atk;
-                triggerAnim('enemy-sprite', 'lunge-left');
-                triggerAnim('hero-sprite', 'shake');
-                showDamage(enemy.atk, false, false);
-
-                if (heroHp <= 0) {
-                    state.stage = Math.max(1, state.stage - 1);
-                    heroHp = getHeroStats().maxHp;
-                    document.getElementById('combat-log').textContent = `Defeated! Retreated to Stage ${state.stage}`;
-                    enemy = createEnemy(state.stage);
-                    saveState();
-                }
-                renderUI();
-            }
-
-            function buyUpgrade(type) {
-                const cost = getCost(type);
-                if (state.gold < cost) return;
-
-                state.gold -= cost;
-                if (type === 'atk') state.atkLvl++;
-                if (type === 'hp') {
-                    state.hpLvl++;
-                    heroHp = getHeroStats().maxHp;
-                }
-                if (type === 'crit') state.critLvl++;
-
-                if (tg && tg.HapticFeedback) tg.HapticFeedback.impactOccurred('light');
-                saveState();
-                renderUI();
-            }
-
-            function saveState() {
-                try {
-                    localStorage.setItem(SAVE_KEY, JSON.stringify(state));
-                } catch (e) {}
-            }
-
-            function renderUI() {
-                const hero = getHeroStats();
-                const stageBadge = document.getElementById('stage-badge');
-                stageBadge.textContent = enemy.isBoss ? `BOSS • Stage ${state.stage}` : `Stage ${state.stage}`;
-                stageBadge.className = enemy.isBoss ? 'stage-pill boss' : 'stage-pill';
-
-                document.getElementById('gold-count').textContent = formatNum(state.gold);
-
-                // Hero
-                document.getElementById('hero-hp-bar').style.width = Math.max(0, (heroHp / hero.maxHp) * 100) + '%';
-                document.getElementById('hero-hp-val').textContent = `${formatNum(Math.max(0, heroHp))}/${formatNum(hero.maxHp)}`;
-                document.getElementById('hero-atk-val').textContent = `${formatNum(hero.atk)} (${hero.critChance}% Crit)`;
-
-                // Enemy
-                document.getElementById('enemy-title').textContent = enemy.name;
-                document.getElementById('enemy-sprite').textContent = enemy.icon;
-                document.getElementById('enemy-hp-bar').style.width = Math.max(0, (enemy.currentHp / enemy.maxHp) * 100) + '%';
-                document.getElementById('enemy-hp-val').textContent = `${formatNum(Math.max(0, enemy.currentHp))}/${formatNum(enemy.maxHp)}`;
-                document.getElementById('enemy-atk-val').textContent = formatNum(enemy.atk);
-
-                // Upgrades
-                document.getElementById('lvl-atk').textContent = state.atkLvl;
-                document.getElementById('lvl-hp').textContent = state.hpLvl;
-                document.getElementById('lvl-crit').textContent = state.critLvl;
-
-                const costAtk = getCost('atk');
-                const costHp = getCost('hp');
-                const costCrit = getCost('crit');
-
-                const btnAtk = document.getElementById('btn-atk');
-                btnAtk.textContent = `${formatNum(costAtk)} 💰`;
-                btnAtk.disabled = state.gold < costAtk;
-
-                const btnHp = document.getElementById('btn-hp');
-                btnHp.textContent = `${formatNum(costHp)} 💰`;
-                btnHp.disabled = state.gold < costHp;
-
-                const btnCrit = document.getElementById('btn-crit');
-                btnCrit.textContent = `${formatNum(costCrit)} 💰`;
-                btnCrit.disabled = state.gold < costCrit;
-            }
-
-            // Event Listeners
-            document.getElementById('battle-arena').addEventListener('click', () => heroStrike(true));
-            document.getElementById('btn-atk').addEventListener('click', () => buyUpgrade('atk'));
-            document.getEle
+                
