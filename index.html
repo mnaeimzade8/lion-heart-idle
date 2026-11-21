@@ -1,67 +1,639 @@
 <!DOCTYPE html>
 <html lang="en" dir="ltr">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Lionheart Idle Arena</title>
-    <script src="https://telegram.org/js/telegram-web-app.js"></script>
-    <style>
-        :root {
-            --bg-dark: #0b0d14;
-            --panel-bg: #151926;
-            --panel-border: #262d42;
-            --gold: #f59e0b;
-            --hero-green: #10b981;
-            --enemy-red: #ef4444;
-            --crit-orange: #ff5500;
-            --text-light: #f8fafc;
-            --text-dim: #94a3b8;
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+  <title>Lionheart Idle Arena</title>
+  <script src="https://telegram.org/js/telegram-web-app.js"></script>
+  <style>
+    :root {
+      --bg-primary: #12141d;
+      --bg-card: #1e2230;
+      --bg-card-elevated: #282d40;
+      --border-subtle: #2d3348;
+      --accent-gold: #f59e0b;
+      --accent-blue: #3b82f6;
+      --hp-hero: #10b981;
+      --hp-enemy: #ef4444;
+      --text-primary: #f3f4f6;
+      --text-secondary: #9ca3af;
+      --radius-md: 12px;
+      --radius-lg: 16px;
+    }
+
+    *, *::before, *::after {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+      user-select: none;
+      -webkit-tap-highlight-color: transparent;
+    }
+
+    html, body {
+      height: 100%;
+      width: 100%;
+      background-color: var(--bg-primary);
+      color: var(--text-primary);
+      font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+    }
+
+    .game-shell {
+      min-height: 100%;
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+      padding: 12px;
+    }
+
+    /* Header HUD */
+    .hud-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      background-color: var(--bg-card);
+      border: 1px solid var(--border-subtle);
+      padding: 10px 14px;
+      border-radius: var(--radius-md);
+    }
+
+    .player-meta {
+      display: flex;
+      flex-direction: column;
+      gap: 3px;
+    }
+
+    .player-name {
+      font-size: 12px;
+      color: var(--text-secondary);
+      font-weight: 600;
+    }
+
+    .stage-badge {
+      display: inline-block;
+      width: fit-content;
+      background-color: var(--accent-blue);
+      color: #ffffff;
+      padding: 3px 10px;
+      border-radius: 8px;
+      font-weight: 700;
+      font-size: 13px;
+    }
+
+    .stage-badge--boss {
+      background-color: #dc2626;
+    }
+
+    .gold-counter {
+      color: var(--accent-gold);
+      font-weight: 800;
+      font-size: 18px;
+    }
+
+    /* Battle Arena */
+    .arena {
+      flex: 1;
+      min-height: 190px;
+      background: linear-gradient(180deg, #1a1d2b 0%, var(--bg-primary) 100%);
+      border: 1px solid var(--border-subtle);
+      border-radius: var(--radius-lg);
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+      align-items: center;
+      padding: 14px;
+      position: relative;
+      overflow: hidden;
+    }
+
+    .combat-status {
+      font-size: 12px;
+      color: var(--text-secondary);
+      text-align: center;
+    }
+
+    .combatants {
+      display: flex;
+      justify-content: space-around;
+      align-items: center;
+      width: 100%;
+      margin: auto 0;
+    }
+
+    .combatant {
+      width: 44%;
+      text-align: center;
+    }
+
+    .avatar {
+      width: 74px;
+      height: 74px;
+      margin: 0 auto 8px;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 36px;
+      background-color: var(--bg-card-elevated);
+      transition: transform 0.1s ease;
+    }
+
+    .avatar--hero { border: 3px solid var(--hp-hero); }
+    .avatar--enemy { border: 3px solid var(--hp-enemy); }
+    .avatar--attack { transform: scale(1.15); }
+
+    .combatant-name {
+      font-weight: 700;
+      font-size: 14px;
+      margin-bottom: 4px;
+    }
+
+    .hp-track {
+      width: 100%;
+      height: 10px;
+      background-color: #374151;
+      border-radius: 5px;
+      overflow: hidden;
+      margin-top: 4px;
+    }
+
+    .hp-fill {
+      height: 100%;
+      width: 100%;
+      transition: width 0.14s linear;
+    }
+
+    .hp-fill--hero { background-color: var(--hp-hero); }
+    .hp-fill--enemy { background-color: var(--hp-enemy); }
+
+    .combatant-stats {
+      font-size: 12px;
+      color: var(--text-secondary);
+      margin-top: 4px;
+    }
+
+    .strike-btn {
+      padding: 10px 24px;
+      border-radius: 999px;
+      border: 2px solid #fde047;
+      background-color: var(--accent-gold);
+      color: #111827;
+      font-weight: 800;
+      font-size: 14px;
+      cursor: pointer;
+      touch-action: manipulation;
+    }
+
+    .strike-btn:active {
+      transform: scale(0.95);
+    }
+
+    .floating-damage {
+      position: absolute;
+      top: 34%;
+      color: #fbbf24;
+      font-weight: 800;
+      font-size: 18px;
+      pointer-events: none;
+      animation: float-up 0.65s ease-out forwards;
+    }
+
+    .floating-damage--enemy { color: var(--hp-enemy); }
+    .floating-damage--manual { color: #38bdf8; }
+
+    @keyframes float-up {
+      0% { opacity: 1; transform: translateY(0); }
+      100% { opacity: 0; transform: translateY(-38px); }
+    }
+
+    /* Ad Boost Banner */
+    .boost-banner {
+      background: linear-gradient(90deg, #8b5cf6, #ec4899);
+      border: none;
+      color: #ffffff;
+      padding: 12px;
+      border-radius: var(--radius-md);
+      font-weight: 700;
+      font-size: 14px;
+      width: 100%;
+      cursor: pointer;
+    }
+
+    .boost-banner:disabled {
+      opacity: 0.65;
+      cursor: default;
+    }
+
+    /* Upgrade List */
+    .upgrade-list {
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+
+    .upgrade-card {
+      background-color: var(--bg-card);
+      border: 1px solid var(--border-subtle);
+      padding: 12px;
+      border-radius: var(--radius-md);
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .upgrade-title {
+      font-size: 14px;
+      font-weight: 700;
+      margin-bottom: 2px;
+    }
+
+    .upgrade-desc {
+      font-size: 12px;
+      color: var(--text-secondary);
+    }
+
+    .upgrade-btn {
+      background-color: var(--accent-gold);
+      color: #111827;
+      border: none;
+      padding: 8px 14px;
+      border-radius: 8px;
+      font-weight: 800;
+      font-size: 13px;
+      cursor: pointer;
+      min-width: 92px;
+    }
+
+    .upgrade-btn:disabled {
+      background-color: #4b5563;
+      color: #9ca3af;
+      cursor: not-allowed;
+    }
+  </style>
+</head>
+<body>
+  <main class="game-shell">
+    <header class="hud-header">
+      <div class="player-meta">
+        <span class="player-name" id="player-name">Hero</span>
+        <span class="stage-badge" id="stage-badge">Stage 1</span>
+      </div>
+      <div class="gold-counter">💰 <span id="gold-value">0</span></div>
+    </header>
+
+    <section class="arena" id="arena">
+      <div class="combat-status" id="combat-status">Auto-battle active • Tap STRIKE for a manual hit</div>
+
+      <div class="combatants">
+        <div class="combatant">
+          <div class="avatar avatar--hero" id="hero-avatar">🦁</div>
+          <div class="combatant-name">Lionheart</div>
+          <div class="hp-track"><div class="hp-fill hp-fill--hero" id="hero-hp-bar"></div></div>
+          <div class="combatant-stats">
+            <span id="hero-hp-text">100/100</span> | ATK: <span id="hero-atk-text">10</span>
+          </div>
+        </div>
+
+        <div class="combatant">
+          <div class="avatar avatar--enemy" id="enemy-avatar">👹</div>
+          <div class="combatant-name" id="enemy-name">Monster Lv.1</div>
+          <div class="hp-track"><div class="hp-fill hp-fill--enemy" id="enemy-hp-bar"></div></div>
+          <div class="combatant-stats">
+            <span id="enemy-hp-text">45/45</span> | ATK: <span id="enemy-atk-text">3</span>
+          </div>
+        </div>
+      </div>
+
+      <button type="button" class="strike-btn" id="strike-btn">
+        ⚔️ STRIKE (<span id="strike-dmg-text">10</span>)
+      </button>
+    </section>
+
+    <button type="button" class="boost-banner" id="boost-btn">
+      🎬 Watch Ad: 2x Attack &amp; Gold (60s)
+    </button>
+
+    <section class="upgrade-list">
+      <div class="upgrade-card">
+        <div>
+          <h3 class="upgrade-title">Sword Upgrade (Lv. <span id="atk-lvl">1</span>)</h3>
+          <p class="upgrade-desc">Increases attack damage (+5)</p>
+        </div>
+        <button type="button" class="upgrade-btn" id="btn-upg-atk">15 💰</button>
+      </div>
+
+      <div class="upgrade-card">
+        <div>
+          <h3 class="upgrade-title">Armor Upgrade (Lv. <span id="hp-lvl">1</span>)</h3>
+          <p class="upgrade-desc">Increases max health (+30)</p>
+        </div>
+        <button type="button" class="upgrade-btn" id="btn-upg-hp">15 💰</button>
+      </div>
+
+      <div class="upgrade-card">
+        <div>
+          <h3 class="upgrade-title">Attack Speed (Lv. <span id="spd-lvl">1</span>)</h3>
+          <p class="upgrade-desc">Faster auto-attacks per second</p>
+        </div>
+        <button type="button" class="upgrade-btn" id="btn-upg-spd">25 💰</button>
+      </div>
+    </section>
+  </main>
+
+  <script>
+    (() => {
+      "use strict";
+
+      const STORAGE_KEY = "lionheartIdleArenaSave_v1";
+      const ENEMY_ICONS = ["👹", "👺", "🧟", "🧛", "🐉", "👾"];
+      const ENEMY_ATTACK_INTERVAL_MS = 1200;
+      const BOOST_DURATION_SEC = 60;
+
+      const UPGRADE_CONFIG = {
+        atk: { baseCost: 15, growth: 1.25, lvlKey: "atkLvl" },
+        hp:  { baseCost: 15, growth: 1.25, lvlKey: "hpLvl" },
+        spd: { baseCost: 25, growth: 1.35, lvlKey: "spdLvl" }
+      };
+
+      const tg = window.Telegram?.WebApp ?? null;
+
+      function initTelegram() {
+        if (!tg) return;
+        try {
+          tg.ready();
+          tg.expand();
+          const firstName = tg.initDataUnsafe?.user?.first_name;
+          if (firstName) {
+            dom.playerName.textContent = firstName;
+          }
+        } catch (_) {
+          // Ignore SDK errors outside Telegram client
         }
-        * {
-            box-sizing: border-box;
-            margin: 0;
-            padding: 0;
-            font-family: 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
-            user-select: none;
-            -webkit-user-select: none;
-            -webkit-touch-callout: none;
-            -webkit-tap-highlight-color: transparent;
+      }
+
+      function vibrate(style = "light", isNotification = false) {
+        if (!tg?.HapticFeedback) return;
+        try {
+          if (isNotification) {
+            tg.HapticFeedback.notificationOccurred(style);
+          } else {
+            tg.HapticFeedback.impactOccurred(style);
+          }
+        } catch (_) {}
+      }
+
+      function loadState() {
+        const fallback = { gold: 0, stage: 1, atkLvl: 1, hpLvl: 1, spdLvl: 1 };
+        try {
+          const raw = localStorage.getItem(STORAGE_KEY);
+          if (!raw) return fallback;
+          const parsed = JSON.parse(raw);
+          return {
+            gold: Math.max(0, Number(parsed.gold) || 0),
+            stage: Math.max(1, Number(parsed.stage) || 1),
+            atkLvl: Math.max(1, Number(parsed.atkLvl) || 1),
+            hpLvl: Math.max(1, Number(parsed.hpLvl) || 1),
+            spdLvl: Math.max(1, Number(parsed.spdLvl) || 1)
+          };
+        } catch (_) {
+          return fallback;
         }
-        html, body {
-            background-color: var(--bg-dark);
-            color: var(--text-light);
-            height: 100%;
-            width: 100%;
-            overflow: hidden;
-            overscroll-behavior: none;
-        }
-        body {
-            display: flex;
-            flex-direction: column;
-            padding: 10px;
-            gap: 8px;
+      }
+
+      function saveState() {
+        try {
+          localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+        } catch (_) {}
+      }
+
+      // Game Formulas
+      function getHeroStats() {
+        const baseAtk = 10 + (state.atkLvl - 1) * 5;
+        return {
+          maxHp: 100 + (state.hpLvl - 1) * 30,
+          atk: baseAtk * boostMultiplier,
+          strikeDmg: Math.max(1, Math.floor(baseAtk * boostMultiplier * 0.9)),
+          attackInterval: Math.max(250, 1000 - (state.spdLvl - 1) * 60)
+        };
+      }
+
+      function createEnemy(stage) {
+        const isBoss = stage % 5 === 0;
+        const hpScale = Math.pow(1.18, stage - 1);
+        const atkScale = Math.pow(1.15, stage - 1);
+        const rewardScale = Math.pow(1.16, stage - 1);
+        const maxHp = Math.floor((isBoss ? 120 : 45) * hpScale);
+
+        return {
+          isBoss,
+          name: isBoss ? `🔥 Boss Stage ${stage}` : `Monster Lv.${stage}`,
+          icon: isBoss ? "👑" : ENEMY_ICONS[(stage - 1) % ENEMY_ICONS.length],
+          maxHp,
+          currentHp: maxHp,
+          atk: Math.floor((isBoss ? 8 : 3) * atkScale),
+          reward: Math.floor((isBoss ? 35 : 10) * rewardScale)
+        };
+      }
+
+      function getUpgradeCost(statKey) {
+        const cfg = UPGRADE_CONFIG[statKey];
+        const level = state[cfg.lvlKey];
+        return Math.floor(cfg.baseCost * Math.pow(cfg.growth, level - 1));
+      }
+
+      // DOM Cache
+      const dom = {
+        playerName: document.getElementById("player-name"),
+        stageBadge: document.getElementById("stage-badge"),
+        goldValue: document.getElementById("gold-value"),
+        arena: document.getElementById("arena"),
+        combatStatus: document.getElementById("combat-status"),
+        heroAvatar: document.getElementById("hero-avatar"),
+        enemyAvatar: document.getElementById("enemy-avatar"),
+        heroHpBar: document.getElementById("hero-hp-bar"),
+        enemyHpBar: document.getElementById("enemy-hp-bar"),
+        heroHpText: document.getElementById("hero-hp-text"),
+        heroAtkText: document.getElementById("hero-atk-text"),
+        enemyName: document.getElementById("enemy-name"),
+        enemyHpText: document.getElementById("enemy-hp-text"),
+        enemyAtkText: document.getElementById("enemy-atk-text"),
+        strikeBtn: document.getElementById("strike-btn"),
+        strikeDmgText: document.getElementById("strike-dmg-text"),
+        boostBtn: document.getElementById("boost-btn"),
+        atkLvl: document.getElementById("atk-lvl"),
+        hpLvl: document.getElementById("hp-lvl"),
+        spdLvl: document.getElementById("spd-lvl"),
+        btnUpgAtk: document.getElementById("btn-upg-atk"),
+        btnUpgHp: document.getElementById("btn-upg-hp"),
+        btnUpgSpd: document.getElementById("btn-upg-spd")
+      };
+
+      // Runtime State
+      const state = loadState();
+      let boostMultiplier = 1;
+      let boostTimeLeft = 0;
+      let heroCurrentHp = getHeroStats().maxHp;
+      let currentEnemy = createEnemy(state.stage);
+      let heroLoopId = null;
+
+      // Visual & Combat Actions
+      function pulseAvatar(avatarEl) {
+        avatarEl.classList.add("avatar--attack");
+        setTimeout(() => avatarEl.classList.remove("avatar--attack"), 110);
+      }
+
+      function spawnDamagePopup(amount, variant) {
+        const el = document.createElement("div");
+        el.className = `floating-damage ${variant ? `floating-damage--${variant}` : ""}`;
+        el.textContent = `-${amount.toLocaleString()}`;
+        el.style.left = variant === "enemy" ? "22%" : "66%";
+        dom.arena.appendChild(el);
+        setTimeout(() => el.remove(), 650);
+      }
+
+      function handleHeroAttack(isManualStrike = false) {
+        const hero = getHeroStats();
+        const damage = isManualStrike ? hero.strikeDmg : hero.atk;
+
+        currentEnemy.currentHp -= damage;
+        pulseAvatar(dom.heroAvatar);
+        spawnDamagePopup(damage, isManualStrike ? "manual" : "");
+
+        if (currentEnemy.currentHp <= 0) {
+          const earnedGold = currentEnemy.reward * boostMultiplier;
+          state.gold += earnedGold;
+          state.stage += 1;
+          heroCurrentHp = Math.min(hero.maxHp, heroCurrentHp + Math.floor(hero.maxHp * 0.25));
+          currentEnemy = createEnemy(state.stage);
+          dom.combatStatus.textContent = `Stage cleared! +${earnedGold.toLocaleString()} Gold`;
+          saveState();
         }
 
-        /* Top Bar */
-        .top-bar {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            background: var(--panel-bg);
-            border: 1px solid var(--panel-border);
-            padding: 8px 12px;
-            border-radius: 12px;
-            flex-shrink: 0;
+        render();
+      }
+
+      function handleEnemyAttack() {
+        const hero = getHeroStats();
+        heroCurrentHp -= currentEnemy.atk;
+        pulseAvatar(dom.enemyAvatar);
+        spawnDamagePopup(currentEnemy.atk, "enemy");
+
+        if (heroCurrentHp <= 0) {
+          state.stage = Math.max(1, state.stage - 1);
+          heroCurrentHp = getHeroStats().maxHp;
+          currentEnemy = createEnemy(state.stage);
+          dom.combatStatus.textContent = `Defeated! Returned to Stage ${state.stage}`;
+          saveState();
         }
-        .player-info {
-            display: flex;
-            flex-direction: column;
-            gap: 2px;
+
+        render();
+      }
+
+      function handleUpgrade(statKey) {
+        const cost = getUpgradeCost(statKey);
+        if (state.gold < cost) return;
+
+        state.gold -= cost;
+        state[UPGRADE_CONFIG[statKey].lvlKey] += 1;
+
+        if (statKey === "hp") {
+          heroCurrentHp = getHeroStats().maxHp;
+        } else if (statKey === "spd") {
+          restartHeroLoop();
         }
-        .player-name {
-            font-size: 11px;
-            color: var(--text-dim);
-            font-weight: 600;
+
+        vibrate("light");
+        saveState();
+        render();
+      }
+
+      function handleAdBoost() {
+        if (boostTimeLeft > 0) return;
+        boostMultiplier = 2;
+        boostTimeLeft = BOOST_DURATION_SEC;
+        vibrate("success", true);
+        render();
+      }
+
+      function restartHeroLoop() {
+        if (heroLoopId !== null) clearInterval(heroLoopId);
+        heroLoopId = setInterval(() => handleHeroAttack(false), getHeroStats().attackInterval);
+      }
+
+      // UI Renderer
+      function render() {
+        const hero = getHeroStats();
+        const heroHpRatio = Math.max(0, Math.min(100, (heroCurrentHp / hero.maxHp) * 100));
+        const enemyHpRatio = Math.max(0, Math.min(100, (currentEnemy.currentHp / currentEnemy.maxHp) * 100));
+
+        dom.stageBadge.textContent = `Stage ${state.stage}`;
+        dom.stageBadge.classList.toggle("stage-badge--boss", currentEnemy.isBoss);
+        dom.goldValue.textContent = state.gold.toLocaleString();
+        dom.strikeDmgText.textContent = hero.strikeDmg.toLocaleString();
+
+        dom.heroHpBar.style.width = `${heroHpRatio}%`;
+        dom.heroHpText.textContent = `${Math.max(0, heroCurrentHp).toLocaleString()}/${hero.maxHp.toLocaleString()}`;
+        dom.heroAtkText.textContent = hero.atk.toLocaleString();
+
+        dom.enemyName.textContent = currentEnemy.name;
+        dom.enemyAvatar.textContent = currentEnemy.icon;
+        dom.enemyHpBar.style.width = `${enemyHpRatio}%`;
+        dom.enemyHpText.textContent = `${Math.max(0, currentEnemy.currentHp).toLocaleString()}/${currentEnemy.maxHp.toLocaleString()}`;
+        dom.enemyAtkText.textContent = currentEnemy.atk.toLocaleString();
+
+        dom.atkLvl.textContent = state.atkLvl;
+        dom.hpLvl.textContent = state.hpLvl;
+        dom.spdLvl.textContent = state.spdLvl;
+
+        const upgradeButtons = [
+          ["atk", dom.btnUpgAtk],
+          ["hp", dom.btnUpgHp],
+          ["spd", dom.btnUpgSpd]
+        ];
+
+        for (const [key, btn] of upgradeButtons) {
+          const cost = getUpgradeCost(key);
+          btn.textContent = `${cost.toLocaleString()} 💰`;
+          btn.disabled = state.gold < cost;
         }
-        .stage-row {
-            display: flex;
+      }
+
+      // Bind Events & Start Loops
+      initTelegram();
+
+      let lastStrikeAt = 0;
+      dom.strikeBtn.addEventListener("click", () => {
+        const now = Date.now();
+        if (now - lastStrikeAt < 50) return;
+        lastStrikeAt = now;
+        vibrate("light");
+        handleHeroAttack(true);
+      });
+
+      dom.btnUpgAtk.addEventListener("click", () => handleUpgrade("atk"));
+      dom.btnUpgHp.addEventListener("click", () => handleUpgrade("hp"));
+      dom.btnUpgSpd.addEventListener("click", () => handleUpgrade("spd"));
+      dom.boostBtn.addEventListener("click", handleAdBoost);
+
+      setInterval(handleEnemyAttack, ENEMY_ATTACK_INTERVAL_MS);
+
+      setInterval(() => {
+        if (boostTimeLeft <= 0) return;
+        boostTimeLeft -= 1;
+        dom.boostBtn.disabled = true;
+        dom.boostBtn.textContent = `⚡ 2x Boost Active (${boostTimeLeft}s)`;
+
+        if (boostTimeLeft === 0) {
+          boostMultiplier = 1;
+          dom.boostBtn.disabled = false;
+          dom.boostBtn.textContent = "🎬 Watch Ad: 2x Attack & Gold (60s)";
+          render();
+        }
+      }, 1000);
+
+      restartHeroLoop();
+      render();
+    })();
+  </script>
+</body>
+</html>
